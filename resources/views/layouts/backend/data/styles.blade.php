@@ -1,5 +1,6 @@
 <meta charset="UTF-8">
   <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{{ $app_name }}</title>
   <link rel="shortcut icon" href="{{ $app_logo }}" type="image/x-icon">
   <!-- General CSS Files -->

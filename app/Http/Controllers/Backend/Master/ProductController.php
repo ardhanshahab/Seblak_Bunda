@@ -10,7 +10,7 @@ use App\Models\Master\Product;
 use App\Models\Master\ProductImage;
 use App\Repositories\BaseRepository;
 use Illuminate\Http\Request;
-use Str;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -35,6 +35,7 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        // dd($request->all());
         $request->merge(['slug' => Str::slug($request->name)]);
         $product = $this->product->store($request->except('images'));
         $data['product_id'] = $product->id;

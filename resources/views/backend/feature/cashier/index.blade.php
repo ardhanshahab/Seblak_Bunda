@@ -64,19 +64,19 @@
                <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <h6>Subtotal</h6>
-                    <h6>25.000</h6>
+                    <h6 id="subtotal">0</h6>
                 </div>
                 <div class="d-flex justify-content-between">
                     <h6>PPN (10%)</h6>
-                    <h6>25.000</h6>
+                    <h6 id="ppn">0</h6>
                 </div>
                 <hr>
                 <div class="d-flex justify-content-between">
                     <h6>Total</h6>
-                    <h6>25.000</h6>
+                    <h6 id="total">0</h6>
                 </div>
                 <div class="text-right">
-                    <a href="" class="btn btn-warning">Proses Pembayaran</a>
+                    <a href="" class="btn btn-warning btn-proses-pembayaran">Proses Pembayaran</a>
                 </div>
                </div>
             </div>
@@ -134,6 +134,13 @@
 @push('js')
     <script src="{{ asset('mixitup/mixitup.min.js') }}"></script>
     <script>
+        $(document).ready(function() {
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+        });
+    });
          $("#list-detail").css({
             height: 300,
         }).niceScroll();
@@ -148,51 +155,146 @@
             }
         });
         var arrayId = [];
+        var total = 0;
         $('.btn-add').on('click', function() {
             var name = $(this).data('name')
             var image = $(this).data('image')
             var price = $(this).data('price')
             var id = 'id-' + $(this).data('id')
-            let hasKey = arrayId.includes(id); 
+            let hasKey = arrayId.includes(id);
             var content = `
-                <div class="col-12 posisi-relative mb-3 `+id+`" >
-                            <img src="`+image+`" alt="" srcset=""
+                <div class="col-12 posisi-relative mb-3 ${id}">
+                    <meta name="csrf-token" content="{{ csrf_token() }}">
+                            <img src="${image}" alt="" srcset=""
                                 class="rounded gambar-detail">
-                            <span class="mt-2 text-bold judul-detail">`+name+` </span> <br>
-                            <span class="text-warning harga-detail">`+price+`</span>
-                            <button type="button" onclick="hapus('`+id+`')" class="btn btn-danger btn-sm px-2 posisi-top-kanan" ><i class="fa fa-times"></i></button>
+                            <span class="mt-2 text-bold judul-detail">${name} </span> <br>
+                            <span class="text-warning harga-detail">${price}</span>
+                            <button type="button" onclick="hapus('${id}')" class="btn btn-danger btn-sm px-2 posisi-top-kanan" ><i class="fa fa-times"></i></button>
                             <div class="input-group posisi-bottom-kiri">
                                 <div class="input-group-prepend">
-                                    <button class="btn btn-warning btn-sm shadow-none " type="button">
+                                    <button class="btn btn-warning btn-sm shadow-none btn-minus" type="button">
                                         <i class="fa fa-minus"></i>
                                     </button>
                                 </div>
-                                <input type="text" class="form-control form-control-sm" placeholder="" aria-label=""
-                                    value="1" style="text-align: center">
+                                <input type="text" class="form-control form-control-sm jumlah" placeholder="" aria-label=""
+                                    value="1" style="text-align: center" readonly>
                                 <div class="input-group-append">
-                                    <button class="btn btn-warning btn-sm shadow-none " type="button">
+                                    <button class="btn btn-warning btn-sm shadow-none btn-plus" type="button">
                                         <i class="fa fa-plus"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
                 `;
-            if (hasKey) {
-                
-            } else {
+            if (!hasKey) {
                 arrayId.push(id);
                 $('#daftar-pesanan').append(content);
+                total += price;
+                updateTotal();
             }
-         
-            
         });
-        function hapus(id){
-            $('.' + id).remove();
-            var newArray = arrayId.filter(function(f) { return f !== ''+id+'' })
-            arrayId = [];
-            arrayId = newArray
-            console.log(arrayId)
+
+        $(document).on('click', '.btn-plus', function() {
+            var inputJumlah = $(this).closest('.input-group').find('.jumlah');
+            var jumlah = parseInt(inputJumlah.val());
+            var harga = parseInt($(this).closest('.input-group').siblings('.harga-detail').text().replace(/[^\d]/g, ''));
+            var totalItem = jumlah * harga;
+            inputJumlah.val(jumlah + 1);
+            var id = $(this).closest('.posisi-relative').attr('class').split(' ')[2];
+            total += harga;
+            updateTotal();
+        });
+
+        $(document).on('click', '.btn-minus', function() {
+            var inputJumlah = $(this).closest('.input-group').find('.jumlah');
+            var jumlah = parseInt(inputJumlah.val());
+            var harga = parseInt($(this).closest('.input-group').siblings('.harga-detail').text().replace(/[^\d]/g, ''));
+            var totalItem = jumlah * harga;
+            if (jumlah > 1) {
+                inputJumlah.val(jumlah - 1);
+                var id = $(this).closest('.posisi-relative').attr('class').split(' ')[2];
+                total -= harga;
+                updateTotal();
+            }
+        });
+
+        function updateTotal() {
+            var ppn = total * 0.1; // Hitung pajak (10% dari total)
+            var subtotal = total - ppn; // Hitung subtotal
+            $('#subtotal').text(formatRupiah(subtotal.toString())); // Tampilkan subtotal
+            $('#ppn').text(formatRupiah(ppn.toString())); // Tampilkan pajak
+            $('#total').text(formatRupiah(total.toString())); // Tampilkan total
         }
+
+
+        function hapus(id) {
+            var price = $('.' + id).find('.harga-detail').text(); // Ambil harga dari elemen dengan class id
+            $('.' + id).remove(); // Hapus elemen dari daftar pesanan
+            var newArray = arrayId.filter(function(f) { return f !== '' + id + '' }); // Filter id yang dihapus
+            arrayId = newArray;
+            total -= parseInt(price.replace(/[^\d]/g, '')); // Kurangi harga item dari total
+            updateTotal(); // Perbarui tampilan total
+        }
+
+
+
+        function formatRupiah(angka) {
+            var number_string = angka.toString().replace(/\./g, '');
+            var split = number_string.split(',');
+            var sisa = split[0].length % 3;
+            var rupiah = split[0].substr(0, sisa);
+            var ribuan = split[0].substr(sisa).match(/\d{1,3}/gi);
+
+            if (ribuan) {
+                separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+
+            rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+            return rupiah;
+            }
+
+            $('.btn-proses-pembayaran').on('click', function() {
+                var orders = [];
+                $('#daftar-pesanan .posisi-relative').each(function() {
+                    var id = $(this).attr('class').split(' ')[2];
+                    var name = $(this).find('.judul-detail').text();
+                    var price = parseInt($(this).find('.harga-detail').text().replace(/[^\d]/g, ''));
+                    var quantity = parseInt($(this).find('.jumlah').val());
+                    orders.push({ id: id, name: name, price: price, quantity: quantity });
+                    localStorage.setItem('order',orders);
+                });
+
+                $.ajax({
+                    type: 'POST',
+                    url: '{{ route("feature.order.store") }}',
+                    data: {
+                        outlet_id: '1',
+                        user_id: '1',
+                        orders: orders,
+                        // Tambahkan data pesanan lainnya yang diperlukan
+                    },
+                    success: function(response) {
+                        alert(response.message); // Tampilkan pesan sukses
+                        // Reset daftar pesanan atau lakukan aksi lainnya
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(error); // Tampilkan error jika terjadi
+                        console.log('Data yang dikirim:', xhr); // Tampilkan xhr yang dikirim sebelum request dikirim
+                        localStorage.setItem('error', JSON.stringify(xhr)); // Simpan response ke localStorage
+
+
+                    },
+                    beforeSend: function(xhr) {
+                        console.log('Data yang dikirim:', xhr); // Tampilkan xhr yang dikirim sebelum request dikirim
+                        localStorage.setItem('orderResponse', JSON.stringify(xhr)); // Simpan response ke localStorage
+
+                    }
+                });
+            });
+
+
+
 
     </script>
 @endpush
